@@ -4,10 +4,15 @@
 ## Rule
 본 프로젝트는 Forking Workflow를 기반으로 운영됩니다. 모든 개발은 develop 브랜치를 중심으로 이루어지며, 파트별 검증 후 최종 배포 시에만 main을 사용합니다.
 
-  - ### Commit 양식
-      1. Default: `[ 파트명 | 본인이름 | 유형 ]` -> 항상 commit message 맨 앞에 붙어야 함.
-      2. 유형
-         a. 
+  - ### Commit 양식         
+      | 유형    |  tagname |
+      | ----- | -------- |
+      | 추가    | add      |
+      | 삭제    | del      |
+      | 수정    | mod      |
+      | 버그 수정 | fix      |
+
+    Default: `[ 파트명 | 본인이름 | 유형 ]` -> 항상 commit message 맨 앞에 붙어야 함.
 
   - ### Branch Structure
 ```
