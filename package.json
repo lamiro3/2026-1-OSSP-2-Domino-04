@@ -1,0 +1,24 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "외국인들을 위한 관광지 및 명소 추천 서비스",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DeokWonChung/2026-1-OSSP-2-Domino-04.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DeokWonChung/2026-1-OSSP-2-Domino-04/issues"
+  },
+  "homepage": "https://github.com/DeokWonChung/2026-1-OSSP-2-Domino-04#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
