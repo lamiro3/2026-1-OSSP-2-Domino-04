@@ -36,6 +36,12 @@
       `git checkout -b feat/front-taehyeon`
 
   - ### Daily Workflow (개발 진행): 작업을 시작하기 전과 완료한 후에는 반드시 아래 순서를 따릅니다.
+    - #### ISSUE 생성
+      1. Title의 경우 `[Week n] - {해당 주차에 구현할 파트명}`
+      2. Description에 내용 간단히 요약해서 작성 - 이건 파트별로 format 통일하면 좋을 것 같다.
+      3. Assignees에 참여한 사람 모두 포함시키기
+      4. label의 경우 자유(하는 걸 추천함)
+         
     - #### 동기화: 작업 전 upstream/develop의 최신 내용을 가져옵니다.
       - `git pull upstream develop`
         
@@ -46,6 +52,10 @@
     - #### PR(Pull Request) 생성: GitHub 웹페이지에서 Compare & pull request 버튼 클릭
       - **base repository**: TeamName/project-name (base: frontend 또는 backend)
       - **head repository**: YourID/project-name (compare: feat/본인이름)
+      - **others**
+        - Reviewer의 경우 파트장 또는 팀장 포함시키기
+        - Assignees의 경우 ISSUE 생성시와 동일
+        - Development에서 앞서 만든 ISSUE 검색해서 해당 ISSUE와 연결
 
   - ### Merge: 파트원 리뷰 후, 각 파트별 대표가 확인하여 팀 저장소에 반영합니다.
   - ### Final Merge: 두 파트 모두 이상이 없다면, 팀장이 최종적으로 develop branch에 Merge 합니다.
