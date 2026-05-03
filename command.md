@@ -8,17 +8,24 @@ docker rmi $(docker images -q) --force
 docker-compose build --no-cache
 # 4. 서버 실행
 docker-compose up
-
+# 5. 로그 띄우기
+docker-compose logs -f api-server
 # 1. 요청 예
 카카오맵 호출
 http://localhost:3000/api/map/search?query=강남역
+파이어베이스 호출
+http://localhost:3000/api/auth/signup?forceError=true
+공공테이터
+http://localhost:3000/api/media/locations/summary?pageNo=1&numOfRows=5
 
 
+작업 이전
 # github 프로토콜
 # 1. git checkout feat/back-deokwon
 # 2. 원본 저장소의 최신 코드(develop)를 내 브랜치로 병합
 git pull upstream develop
-# 3. 변경된 파일 스테이징
+작업 이후
+# 3. 작업 및 변경된 파일 스테이징
 git add .
 
 # 4. 커밋 메시지 작성 (팀 규칙 준수)
@@ -36,3 +43,17 @@ git pull upstream develop
 git add .
 git commit -m "chore: resolve conflict with develop"
 git push origin feat/back-deokwon
+
+# merge
+# 1. 원격 저장소 정보 업데이트
+git fetch origin
+# 2. 내 브랜치로 이동
+git checkout [내_브랜치_이름]
+# 3. 원격에 있는 팀원 브랜치를 내 브랜치로 병합
+git merge origin/[팀원_브랜치_이름]
+# 4. 충돌(Conflict) 해결 (필요 시)
+git add .
+git commit -m "Merge branch [팀원_브랜치] into [내_브랜치]"
+
+# 5. 결과 반영
+git push origin [내_브랜치_이름]
