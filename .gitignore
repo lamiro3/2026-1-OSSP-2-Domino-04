@@ -9,5 +9,4 @@ firebase-adminsdk.json
 !package.json
 !package-lock.json
 
-
-
+mysql_data/
