@@ -25,6 +25,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "firebase-admin": "^13.8.0",
     "mysql2": "^3.22.3",
     "sequelize": "^6.37.8"
   },
