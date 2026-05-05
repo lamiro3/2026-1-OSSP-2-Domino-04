@@ -29,7 +29,7 @@ class FirebaseService {
                 uid: userRecord.uid,
                 email: userRecord.email,
             };
-        } catch (error) {
+        } catch (error) {   
             console.error('[Firebase_Service] SignUp Error:', error.message);
             // 에러 메시지 추상화: 클라이언트에게 Firebase의 구체적인 에러(예: 데이터베이스 구조) 노출 방지
             throw new Error(error.code === 'auth/email-already-exists' 

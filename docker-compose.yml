@@ -2,6 +2,8 @@ services:
 
   db:
     image: mysql:8.0
+    volumes:
+      - ./docker/mysql/healthcheck.sh:/healthcheck.sh:ro
     restart: always
     env_file:
       - .env
@@ -11,11 +13,16 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
     ports:
       - "3307:3306"
-    volumes:
-      - ./mysql_data:/var/lib/mysql  # 데이터가 사라지지 않게 내 컴퓨터에 저장
+    #volumes:
+    #  - ./mysql_data:/var/lib/mysql  # 데이터가 사라지지 않게 내 컴퓨터에 저장
+    healthcheck:
+      test: ["CMD", "bash", "/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       
   api-server:
-    build: .
+    build: ./express-server
     ports:
       - "3000:3000"
     volumes:
@@ -28,4 +35,5 @@ services:
       - NODE_ENV=development
       - DB_HOST=db
     depends_on:
-      - db
+      db:
+        condition: service_healthy
