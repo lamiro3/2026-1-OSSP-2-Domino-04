@@ -53,4 +53,5 @@ services:
       - MYSQL_HOST=db    # 도커 내부망 통신을 위해 db 컨테이너 지정
       - REDIS_HOST=redis # 도커 내부망 통신을 위해 redis 컨테이너 지정
     depends_on:
-      - db
+      db:
+        condition: service_healthy

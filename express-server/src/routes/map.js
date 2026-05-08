@@ -1,14 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const Kakao_Service = require('../services/Kakao_Service');
+const { searchPlaces, getPlacesByCategory } = require('../services/Kakao_Service');
 const TripAdvisorService = require('../services/TripAdvisor_Service');
+
+/*
+#swagger.tags = ['Map (지도 관련 API)']
+#swagger.summary = '근처 인기 장소 추천'
+#swagger.description = '사용자의 현재 GPS(위도, 경도)를 받아 도보 10분(500m) 이내의 인기 장소를 TripAdvisor 평점 기준으로 추천합니다.'
+
+#swagger.tags: API들을 그룹으로 묶어주는 폴더 같은 역할입니다. (예: 인증, 지도, 재난 등)
+#swagger.summary: 리스트에 보이는 짧은 제목입니다.
+#swagger.description: 클릭했을 때 펼쳐지는 상세 설명입니다.
+*/
 
 router.get('/search', async (req, res) => {
     try {
         const query = req.query.query; // 브라우저에서 보낸 ?query=강남역 추출
         if (!query) return res.status(400).send('검색어를 입력하세요.');
 
-        const results = await Kakao_Service.searchPlaces(query);
+        const results = await searchPlaces(query);
         res.json(results);
     } catch (error) {
         res.status(500).send(error.message);
@@ -60,6 +70,54 @@ router.get('/search-places', async (req, res) => {
     } catch (error) {
         console.error('🚨 라우터 에러:', error);
         res.status(500).json({ error: '장소 데이터를 가져오는 데 실패했습니다.' });
+    }
+});
+
+router.get('/recommend', async (req, res) => {
+    /* #swagger.summary = '좌표 기반 카테고리별 장소 추천'
+    #swagger.description = '위도, 경도와 원하는 카테고리들을 받아 주변 장소 데이터를 반환합니다.'
+    */
+    try {
+        const { lat, lng, categories, radius } = req.query;
+
+        // 필수 값 검증
+        if (!lat || !lng) {
+            return res.status(400).json({ error: "위도(lat)와 경도(lng)가 필요합니다." });
+        }
+
+        // 1. 카테고리 파라미터 처리
+        // 프론트에서 'CE7,FD6' 처럼 콤마로 구분해서 보내면 배열로 변환합니다.
+        // 입력이 없으면 기본적으로 카페(CE7)와 음식점(FD6)을 검색합니다.
+        const categoryList = categories ? categories.split(',') : ['CE7', 'FD6'];
+        const searchRadius = radius || 1000; // 기본 반경 1km
+
+        // 2. 각 카테고리별로 병렬 검색 실행 (속도 최적화)
+        const results = await Promise.all(
+            categoryList.map(async (code) => {
+                const places = await getPlacesByCategory(code.trim(), lng, lat, searchRadius);
+                return {
+                    category_group_code: code.trim(),
+                    count: places.length,
+                    places: places // 상세 장소 리스트 (id, name, address, lat, lng 등 포함)
+                };
+            })
+        );
+
+        // 3. 순수하게 데이터만 담아서 반환
+        // 프론트엔드는 이 데이터를 받아서 원하는 대로 지도에 마커를 찍거나 리스트를 보여줍니다.
+        res.json({
+            status: "success",
+            request_info: {
+                center: { lat: Number(lat), lng: Number(lng) },
+                radius: searchRadius,
+                categories: categoryList
+            },
+            results: results
+        });
+
+    } catch (error) {
+        console.error('🚨 추천 라우터 에러:', error);
+        res.status(500).json({ error: "주변 장소를 불러오는 중 서버 오류가 발생했습니다." });
     }
 });
 

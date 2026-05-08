@@ -6,6 +6,11 @@ const path = require('path');
 const helmet = require('helmet');
 const cors = require('cors');
 
+//api 문서화 패키지 로드
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerFile = require('./swagger-output.json'); // 자동 생성된 파일
+
 // 환경변수 로드 (실행 위치에 구애받지 않도록 절대 경로 명시)
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -45,3 +50,28 @@ if (require.main === module) {
 }
 app.get('/', (req, res) => res.send('API Server is Running!'));
 module.exports = app;
+
+//6. Swagger 설정 (API 문서화)
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: '3.0.0',
+    info: {
+      title: '공개SW 프로젝트 API',
+      version: '1.0.0',
+      description: '서울 도시데이터 기반 경로 추천 서비스 API 문서',
+    },
+    servers: [
+      {
+        url: 'http://localhost:3000', // 서비스 포트에 맞춰 수정
+      },
+    ],
+  },
+  // 중요: routes 폴더 안의 모든 js 파일을 읽어서 문서를 만듭니다.
+  apis: ['./routes/*.js'], 
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+
+//7. API 문서 경로 설정 (보통 /api-docs 사용)
+//app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
