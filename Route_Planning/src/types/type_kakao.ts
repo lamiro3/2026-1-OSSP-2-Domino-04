@@ -2,6 +2,7 @@ export type KakaoLatLng = { getLat: () => number; getLng: () => number };
 export type KakaoLatLngBounds = { extend: (latlng: KakaoLatLng) => void };
 export type KakaoMapInstance = {
   setCenter: (latlng: KakaoLatLng) => void;
+  setLevel:  (level: number) => void;
   setBounds: (bounds: KakaoLatLngBounds, paddingTop?: number, paddingRight?: number, paddingBottom?: number, paddingLeft?: number) => void;
 };
 export type KakaoOverlay  = { setMap: (map: KakaoMapInstance | null) => void };
