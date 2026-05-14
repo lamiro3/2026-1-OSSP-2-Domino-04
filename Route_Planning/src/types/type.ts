@@ -1,4 +1,4 @@
-export type Tab      = "nearby" | "route";
+export type Tab = "nearby" | "route";
 export type Category = "카페" | "갤러리" | "공원" | "명소" | "문화" | "거리";
 
 export type PlaceData = {
