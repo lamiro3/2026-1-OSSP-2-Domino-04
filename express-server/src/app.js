@@ -22,7 +22,6 @@ app.use(helmet()); // HTTP 헤더 보안 취약점 방어
 // 1-1. 강력한 CORS 설정 (도메인 제한)
 const allowedOrigins = [
   'http://localhost:5173', // 프론트엔드 개발 환경 (Vite)
-  'http://localhost:3000', // 프론트엔드 개발 환경 (React/Next)
   process.env.FRONTEND_URL // 프로덕션 프론트엔드 주소 (.env에서 로드)
 ];
 
@@ -54,14 +53,10 @@ app.use(express.json()); // JSON Payload 파싱
 app.use(express.urlencoded({ extended: true })); // URL-encoded Payload 파싱
 
 // 2. 라우터 모듈 분리 및 로드
-const authRoutes = require('./routes/auth');
 const mapRoutes = require('./routes/map');
-const mediaRoutes = require('./routes/media');
 
 // 3. 엔드포인트별 라우터 매핑 (계층화)
-app.use('/api/auth', authRoutes);
-app.use('/api/map', mapRoutes);
-app.use('/api/media', mediaRoutes);
+app.use('/api', mapRoutes);
 
 // 4. API 문서 경로 설정 (보통 /api-docs 사용)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
