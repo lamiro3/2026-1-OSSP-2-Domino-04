@@ -12,7 +12,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerFile = require('./swagger-output.json'); // 자동 생성된 파일
 
 // 환경변수 로드 (실행 위치에 구애받지 않도록 절대 경로 명시)
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
 
@@ -22,6 +22,7 @@ app.use(helmet()); // HTTP 헤더 보안 취약점 방어
 // 1-1. 강력한 CORS 설정 (도메인 제한)
 const allowedOrigins = [
   'http://localhost:5173', // 프론트엔드 개발 환경 (Vite)
+  'http://localhost:3000', // 로컬 테스트용
   process.env.BACKEND_URL, // API 서버 자체에서의 테스트용
   process.env.FRONTEND_URL // 프로덕션 프론트엔드 주소 (.env에서 로드)
 ];
