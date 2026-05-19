@@ -5,7 +5,7 @@ const doc = {
     title: '공개SW 프로젝트 API',
     description: 'API 테스트용 문서입니다.'
   },
-  host: '52.79.60.9:3000'
+  host: 'localhost:3000'
 };
 
 const outputFile = './swagger-output.json'; // 생성될 문서 파일 이름
