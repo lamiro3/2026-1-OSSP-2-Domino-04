@@ -36,18 +36,57 @@
       `git checkout -b feat/front-taehyeon`
 
   - ### Daily Workflow (개발 진행): 작업을 시작하기 전과 완료한 후에는 반드시 아래 순서를 따릅니다.
+    - #### GIT 작업 흐름
+      - ##### 개인
+        ```
+          # 1. 본인 branch로 이동
+          git checkout {파트명}/{팀원 branch명}
+          git pull origin {파트명}/{팀원 branch명}
+          
+          # 2. 작업 & 커밋
+          git add .
+          git commit -m "COMMIT MSG"
+          
+          # 3. 원격에 push
+          git push origin frontend/feat/front-taehyeon
+        ```
+  
+      - ##### PART 팀장(팀원 -> frontend/backend 통합)
+         ```
+          git checkout {파트명}
+          git pull origin {파트명}
+          
+          # 팀원 branch를 파트 branch에 merge
+          git merge {파트명}/{팀원 branch명}
+          git push origin {파트명}
+        ```
+         
+      - ##### 팀장(frontend/backend → develop 통합)
+        ```
+          git checkout develop
+
+          # frontend → develop 반영
+          git subtree merge --prefix=frontend frontend
+          git push origin develop
+          
+          # backend → develop 반영
+          git subtree merge --prefix=backend backend
+          git push origin develop
+        ```
+
+      - ##### 전체 흐름 요약
+        ```
+        frontend/feat/front-taehyeon ──┐
+          frontend/feat/front-hyojun ──┼── merge ──▶ frontend ──┐
+                                                                 ├── subtree merge ──▶ develop
+                                                       backend ──┘
+        ```
+        
     - #### ISSUE 생성
       1. Title의 경우 `[Week n] - {해당 주차에 구현할 파트명}`
       2. Description에 내용 간단히 요약해서 작성 - 이건 파트별로 format 통일하면 좋을 것 같다.
       3. Assignees에 참여한 사람 모두 포함시키기
       4. label의 경우 자유(하는 걸 추천함)
-         
-    - #### 동기화: 작업 전 upstream/develop의 최신 내용을 가져옵니다.
-      - `git pull upstream develop`
-        
-    - #### 작업 및 커밋: 본인 브랜치에서 기능을 구현합니다.
-    - #### Push: 본인의 Fork 저장소(origin)에 올립니다.
-      - `git push origin feat/front-taehyeon`
         
     - #### PR(Pull Request) 생성: GitHub 웹페이지에서 Compare & pull request 버튼 클릭
       - **base repository**: TeamName/project-name (base: frontend 또는 backend)
