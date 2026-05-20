@@ -35,6 +35,13 @@
       #### 3. 본인 파트 브랜치 생성 및 이동 (예: 프론트엔드 태현)
       `git checkout -b feat/front-taehyeon`
 
+  - ### ⚠️ 중요 규칙 (Must Read)
+    - **타 파트와 연동 확인**: 로컬에서 `git pull upstream develop`을 실행하여 전체 코드를 가져와 테스트합니다.
+    - **작업 범위**: 반드시 평소엔 본인 branch에서만 작업합니다!
+    - **develop branch**: pull 제외하곤 절대 건드리지 않습니다!
+    - **Conflict 발생 시**: 팀장에게 바로 알립니다.
+    - **Commit format 통일**: 반드시 commit 양식을 준수합니다.
+
   - ### Daily Workflow (개발 진행): 작업을 시작하기 전과 완료한 후에는 반드시 아래 순서를 따릅니다.
     - #### GIT 작업 흐름
       - ##### 팀원
@@ -100,8 +107,3 @@
         - Reviewer의 경우 파트장 또는 팀장 포함시키기
         - Assignees의 경우 ISSUE 생성시와 동일
         - Development에서 앞서 만든 ISSUE 검색해서 해당 ISSUE와 연결
-
-  - ### ⚠️ 중요 규칙 (Must Read)
-    - **타 파트와 연동 확인**: 로컬에서 `git pull upstream develop을 실행하여 전체 코드를 가져와 테스트합니다.
-    - **Conflict 발생 시**: 팀장에게 바로 알립니다.
-    - **Commit format 통일**: 반드시 commit 양식을 준수합니다.
