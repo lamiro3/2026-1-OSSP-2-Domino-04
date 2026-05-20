@@ -73,6 +73,7 @@
       - ##### 팀장(frontend/backend → develop 통합)
         ```
           git checkout develop
+          git pull origin develop
         
           # Final Merge: 두 파트 모두 이상이 없다면, 팀장이 최종적으로 develop branch에 Merge 합니다.
 
