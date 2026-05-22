@@ -60,14 +60,14 @@
   
       - ##### PART 팀장(팀원 -> frontend/backend 통합)
          ```
-          git checkout {파트명}
-          git pull origin {파트명}
+          git checkout {파트 branch명}
+          git pull origin {파트 branch명}
 
           # 팀원 branch를 파트 branch에 merge (얘는 그냥 참고 바람 ~ 기존 방식대로 github PR 활용할거임!)
           # Merge: 파트원 리뷰 후, 각 파트별 대표가 확인하여 팀 저장소에 반영합니다.
          
-          git merge {파트명}/{팀원 branch명}
-          git push origin {파트명}
+          git merge {팀원 branch명}
+          git push origin {파트 branch명}
         ```
          
       - ##### 팀장(frontend/backend → develop 통합)
