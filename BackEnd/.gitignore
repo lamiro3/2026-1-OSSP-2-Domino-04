@@ -11,3 +11,14 @@ firebase-adminsdk.json
 # --- Mac/Windows 시스템 파일 ---
 .DS_Store
 Thumbs.db
+# express-server.gitignore
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnp.*
+# fastapi-server.gitignore
+venv/
+__pycache__/
+.env
+*.pyc
