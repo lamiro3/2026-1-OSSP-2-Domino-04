@@ -38,8 +38,8 @@ def _load_active_disasters(db: Session) -> list:
     rows = db.execute(
         text("""
             SELECT
-                ST_X(coordinates) AS lng,
-                ST_Y(coordinates) AS lat,
+                ST_X(coordinates) AS lat,
+                ST_Y(coordinates) AS lng,
                 radius_m,
                 weight_penalty
             FROM DisasterAlerts
