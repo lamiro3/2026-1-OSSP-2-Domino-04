@@ -14,6 +14,7 @@ Routers import from here; they own only HTTP plumbing (request/response).
 
 import os
 import json
+import logging
 import httpx
 from datetime import datetime, timedelta
 
@@ -21,6 +22,8 @@ from fastapi import HTTPException
 from google import genai
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Gemini client (module-level singleton)
@@ -33,6 +36,28 @@ if not GEMINI_API_KEY:
     print("[ERROR] GEMINI_API_KEY is not set in .env")
 
 _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+
+
+# ---------------------------------------------------------------------------
+# Seoul bounding box — used for Gemini response validation
+# ---------------------------------------------------------------------------
+
+SEOUL_BBOX = {
+    "lat": (37.40, 37.72),       # 남북 범위
+    "lng": (126.76, 127.18),     # 동서 범위
+    "max_radius_m": 5000,        # 재난 반경 상한 (5km)
+}
+
+MAX_GEMINI_ATTEMPTS = 3          # 좌표 검증 실패 시 최대 재시도 횟수
+
+
+def validate_seoul_coordinates(lat: float, lng: float, radius: int) -> bool:
+    """추출된 위경도가 서울 바운딩박스 안에 있고 반경이 합리적인지 확인."""
+    return (
+        SEOUL_BBOX["lat"][0] <= lat <= SEOUL_BBOX["lat"][1]
+        and SEOUL_BBOX["lng"][0] <= lng <= SEOUL_BBOX["lng"][1]
+        and 0 < radius <= SEOUL_BBOX["max_radius_m"]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -79,15 +104,52 @@ def calculate_weight_penalty(radius_m: int) -> int:
 # ---------------------------------------------------------------------------
 
 def analyze_alert(alert_text: str) -> dict:
-    """Call Gemini to extract lat/lng/radius from an alert message."""
+    """
+    Call Gemini to extract lat/lng/radius from an alert message.
+
+    Retries up to MAX_GEMINI_ATTEMPTS times if the parsed coordinates fall
+    outside Seoul's bounding box or the radius is unreasonable.
+    Raises HTTPException(502) if all attempts fail.
+    """
     prompt = build_gemini_prompt(alert_text)
-    try:
-        response = _gemini_client.models.generate_content(
-            model=GEMINI_MODEL, contents=prompt
+    last_error: str = ""
+
+    for attempt in range(1, MAX_GEMINI_ATTEMPTS + 1):
+        try:
+            response = _gemini_client.models.generate_content(
+                model=GEMINI_MODEL, contents=prompt
+            )
+        except Exception as e:
+            last_error = f"Gemini API call failed: {e}"
+            logger.warning("[Gemini] 시도 %d/%d — API 오류: %s", attempt, MAX_GEMINI_ATTEMPTS, e)
+            continue
+
+        try:
+            parsed = parse_gemini_response(response.text)
+        except HTTPException as e:
+            last_error = e.detail
+            logger.warning("[Gemini] 시도 %d/%d — 파싱 실패: %s", attempt, MAX_GEMINI_ATTEMPTS, e.detail)
+            continue
+
+        lat, lng, radius = float(parsed["lat"]), float(parsed["lng"]), int(parsed["radius"])
+        if validate_seoul_coordinates(lat, lng, radius):
+            if attempt > 1:
+                logger.info("[Gemini] 시도 %d/%d — 좌표 검증 통과: lat=%s, lng=%s, radius=%s",
+                            attempt, MAX_GEMINI_ATTEMPTS, lat, lng, radius)
+            return parsed
+
+        last_error = (
+            f"서울 범위 초과 — lat={lat}, lng={lng}, radius={radius}m "
+            f"(허용: lat {SEOUL_BBOX['lat']}, lng {SEOUL_BBOX['lng']}, "
+            f"radius ≤ {SEOUL_BBOX['max_radius_m']}m)"
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gemini API call failed: {str(e)}")
-    return parse_gemini_response(response.text)
+        logger.warning("[Gemini] 시도 %d/%d — 좌표 유효성 실패: %s", attempt, MAX_GEMINI_ATTEMPTS, last_error)
+
+    raise HTTPException(
+        status_code=502,
+        detail=f"Gemini가 {MAX_GEMINI_ATTEMPTS}회 시도 후 유효한 서울 좌표를 반환하지 못했습니다. "
+               f"마지막 오류: {last_error}",
+    )
 
 
 # ---------------------------------------------------------------------------

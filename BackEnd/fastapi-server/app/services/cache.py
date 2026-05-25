@@ -93,9 +93,10 @@ class CacheMetrics:
         return self._total_latency_ms / n if n else 0.0
 
     @property
-    def hit_rate(self) -> float:
+    def hit_rate_pct(self) -> float:
+        """히트율 — 0~100 퍼센트 단위로 반환."""
         n = self.hit_count + self.miss_count
-        return self.hit_count / n if n else 0.0
+        return round(self.hit_count / n * 100, 1) if n else 0.0
 
     def record(self, hit: bool, latency_ms: float) -> None:
         if hit:
@@ -109,8 +110,8 @@ class CacheMetrics:
             "hit_count"      : self.hit_count,
             "miss_count"     : self.miss_count,
             "set_count"      : self.set_count,
-            "avg_latency_ms" : round(self.avg_latency_ms, 4),
-            "hit_rate"       : round(self.hit_rate, 4),
+            "avg_latency_ms" : round(self.avg_latency_ms, 1),
+            "hit_rate_pct"   : self.hit_rate_pct,   # 0~100 %
         }
 
 

@@ -147,20 +147,38 @@ class EventDetector:
         self._on_new_event = on_new_event
 
     # ── DB에서 이미 처리한 ID 로드 (서버 시작 시 1회 호출) ──
-    async def load_seen_ids(self, db_session) -> None:
+    def load_seen_ids(self) -> None:
         """
-        재시작 후 중복 알림 방지를 위해 DB에서 최근 24시간 event_id 로드.
-        database.py의 DisasterLog 모델 사용.
-        """
-        from app.models.disaster import DisasterLog  # 순환 import 방지
+        재시작 후 중복 알림 방지를 위해 DB에서 최근 24시간 event_id를 로드.
 
-        cutoff = datetime.now().replace(hour=0, minute=0, second=0)
-        logs = await db_session.execute(
-            "SELECT event_id FROM disaster_log WHERE detected_at >= :cutoff",
-            {"cutoff": cutoff},
-        )
-        self._seen_ids = {row.event_id for row in logs}
-        logger.info(f"[EventDetector] 기존 이벤트 {len(self._seen_ids)}건 로드")
+        database.py의 동기 SessionLocal을 직접 사용해 async 마이그레이션 없이
+        scheduler.start() 에서 즉시 호출 가능.
+
+        쿼리 대상: DisasterAlerts.event_id WHERE received_at > NOW() - 24h
+        NULL event_id(레거시 행)는 자동 제외.
+        """
+        from datetime import timedelta
+        from sqlalchemy import text
+        from app.database import SessionLocal  # 순환 import 방지
+
+        cutoff = datetime.now() - timedelta(hours=24)
+        db = SessionLocal()
+        try:
+            rows = db.execute(
+                text(
+                    "SELECT event_id FROM DisasterAlerts "
+                    "WHERE received_at >= :cutoff AND event_id IS NOT NULL"
+                ),
+                {"cutoff": cutoff},
+            ).fetchall()
+            self._seen_ids = {row.event_id for row in rows}
+            logger.info("[EventDetector] 서버 재시작 — DB에서 기존 이벤트 %d건 복원", len(self._seen_ids))
+        except Exception as exc:
+            # DB 연결 실패해도 서버 기동은 계속 진행 (재난 누락보다 서비스 중단이 더 치명적)
+            logger.warning("[EventDetector] load_seen_ids 실패 (빈 set으로 진행): %s", exc)
+            self._seen_ids = set()
+        finally:
+            db.close()
 
     # ── 재난문자 처리 ──
     async def process_disaster(

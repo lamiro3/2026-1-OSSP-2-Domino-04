@@ -14,7 +14,7 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from app.routers import disaster, route, population
+from app.routers import disaster, route, population, cache
 from app.services.scheduler import scheduler
 from app.database import get_db
 
@@ -67,6 +67,7 @@ app = FastAPI(
 app.include_router(disaster.router, prefix="/disaster")
 app.include_router(population.router, prefix="/population")
 app.include_router(route.router, prefix="/route")
+app.include_router(cache.router, prefix="/cache")
 
 
 @app.get("/health")

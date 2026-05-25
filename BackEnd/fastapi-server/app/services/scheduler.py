@@ -82,7 +82,9 @@ class Scheduler:
         self._tasks: list[asyncio.Task] = []
         self._sem        = asyncio.Semaphore(_CONCURRENCY)
         self._count_lock = asyncio.Lock()
-        self._api_call_count = 0
+        self._api_call_count    = 0
+        self._weather_set_count  = 0   # 날씨 캐시 미스 → 실제 SET 횟수
+        self._weather_skip_count = 0   # 날씨 캐시 히트 → SET 생략 횟수
 
     # ── lifespan 훅 ──────────────────────────────
 
@@ -90,9 +92,8 @@ class Scheduler:
         if hasattr(self._cache, "start"):
             await self._cache.start()
 
-        # TODO: database.py async 마이그레이션 후 아래 주석 해제
-        # async with AsyncSession() as session:
-        #     await self._detector.load_seen_ids(session)
+        # 서버 재시작 직후 중복 알림 방지 — 최근 24시간 event_id 복원
+        self._detector.load_seen_ids()
 
         self._tasks = [
             asyncio.create_task(
@@ -221,12 +222,14 @@ class Scheduler:
             return
         key = f"weather:{data.area_nm}"
         if await self._cache.get(key) is not None:
-            return   # 캐시 살아있으면 스킵
+            self._weather_skip_count += 1   # 히트 — SET 생략
+            return
         await self._cache.set(
             key,
             dataclasses.asdict(data.weather),
             ttl=_TTL_WEATHER,
         )
+        self._weather_set_count += 1        # 미스 — 실제 SET 발생
 
     # ── 공개 속성 ─────────────────────────────────
 
@@ -237,6 +240,16 @@ class Scheduler:
     @property
     def api_call_count(self) -> int:
         return self._api_call_count
+
+    @property
+    def weather_set_count(self) -> int:
+        """날씨 캐시 미스로 Redis SET이 실제 발생한 누적 횟수"""
+        return self._weather_set_count
+
+    @property
+    def weather_skip_count(self) -> int:
+        """날씨 캐시 히트로 Redis SET을 생략한 누적 횟수"""
+        return self._weather_skip_count
 
 
 # 싱글턴 — main.py에서 import해서 lifespan에 연결
