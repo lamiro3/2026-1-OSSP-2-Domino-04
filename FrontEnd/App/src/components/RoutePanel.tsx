@@ -245,6 +245,10 @@ interface RoutePanelProps {
   recIsLoading:    boolean;
   recError:        string | null;
   recRefetch:      () => void;
+  // [NAV] 안내 시작/취소
+  isNavigating:       boolean;
+  onStartNavigation:  (route: RecommendedRoute) => void;
+  onCancelNavigation: () => void;
 }
 
 // ── [직접 입력용 경로 후보 3개 생성] ─────────────────────
@@ -432,6 +436,7 @@ const RoutePanel: FC<RoutePanelProps> = ({
   routeState, onSetOrigin, onSetDest, onSetResult, onSetLoading, onSetError,
   userLat, userLng, isServicesReady, kakaoMapRef, polylineListRef, overlayListRef,
   recRoutes, recIsLoading, recError, recRefetch,
+  isNavigating, onStartNavigation, onCancelNavigation,
 }) => {
   const [panelTab,    setPanelTab]    = useState<"manual" | "recommend">("recommend");
   const [originInput, setOriginInput] = useState<string>("");
@@ -450,8 +455,18 @@ const RoutePanel: FC<RoutePanelProps> = ({
   const [recOriginPlace, setRecOriginPlace] = useState<Place | null>(null);
   const [recDestPlace,   setRecDestPlace]   = useState<Place | null>(null);
 
-  // 현위치 기반 추천 경로 카드 선택 → 지도에 표시
+  // 현위치 기반 추천 경로 카드 선택 → 지도에 표시 (같은 코스 재클릭 시 토글 + 폴리라인 제거)
   const handleSelectRoute = useCallback((idx: number) => {
+    if (selectedRouteIdx === idx) {
+      setSelectedRouteIdx(null);
+      polylineListRef.current.forEach(p => p.setMap(null));
+      overlayListRef.current.forEach(o => o.setMap(null));
+      polylineListRef.current = [];
+      overlayListRef.current  = [];
+      setRecOriginPlace(null);
+      setRecDestPlace(null);
+      return;
+    }
     const route = recRoutes[idx];
     if (!route) return;
     setSelectedRouteIdx(idx);
@@ -459,7 +474,7 @@ const RoutePanel: FC<RoutePanelProps> = ({
     setRecOriginPlace({ id: -1, name: "현재 위치", category: "명소", rating: 0, reviews: 0, district: "", lat: userLat, lng: userLng, distance: 0 });
     setRecDestPlace(dest ?? null);
     drawOnMap(route.roads, route.places.slice(0, -1), kakaoMapRef, polylineListRef, overlayListRef);
-  }, [recRoutes, userLat, userLng, kakaoMapRef, polylineListRef, overlayListRef]);
+  }, [recRoutes, selectedRouteIdx, userLat, userLng, kakaoMapRef, polylineListRef, overlayListRef]);
 
   // 직접 입력 후보 경로 선택 → 지도에 표시
   const handleSelectManualRoute = useCallback((idx: number) => {
@@ -586,26 +601,44 @@ const RoutePanel: FC<RoutePanelProps> = ({
                 ))}
               </div>
 
-              {/* 후보 카드 */}
+              {/* 후보 카드 — 선택 시 바로 아래 결과 카드 아코디언 표시 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {recRoutes.map((route, i) => (
-                  <RouteOptionCard
-                    key={i} route={route}
-                    isSelected={selectedRouteIdx === i}
-                    onSelect={() => handleSelectRoute(i)}
-                  />
+                  <div key={i}>
+                    <RouteOptionCard
+                      route={route}
+                      isSelected={selectedRouteIdx === i}
+                      onSelect={() => handleSelectRoute(i)}
+                    />
+                    {/* [UI] 선택된 코스 바로 아래 상세 + 안내 버튼 */}
+                    {selectedRouteIdx === i && (
+                      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <RouteResultCard
+                          result={{ distanceMeter: route.totalDistance, durationSec: route.totalDuration, taxiFare: route.taxiFare, tollFare: route.tollFare, roads: route.roads }}
+                          origin="현재 위치"
+                          dest={route.places[route.places.length - 1]?.name ?? "도착"}
+                          waypoints={route.places.slice(0, -1)}
+                        />
+                        {!isNavigating ? (
+                          <button
+                            onClick={() => onStartNavigation(route)}
+                            style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: COLOR_PRIMARY, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}
+                          >
+                            🗺 안내 시작
+                          </button>
+                        ) : (
+                          <button
+                            onClick={onCancelNavigation}
+                            style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: `1.5px solid ${COLOR_BORDER}`, background: COLOR_SURFACE, color: COLOR_TEXT_SUB, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}
+                          >
+                            ✕ 안내 취소
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
-
-              {/* 선택된 경로 결과 카드 */}
-              {selectedRoute && (
-                <RouteResultCard
-                  result={{ distanceMeter: selectedRoute.totalDistance, durationSec: selectedRoute.totalDuration, taxiFare: selectedRoute.taxiFare, tollFare: selectedRoute.tollFare, roads: selectedRoute.roads }}
-                  origin="현재 위치"
-                  dest={selectedRoute.places[selectedRoute.places.length - 1]?.name ?? "도착"}
-                  waypoints={selectedRoute.places.slice(0, -1)}
-                />
-              )}
 
               <div style={{ padding: "10px 14px", background: COLOR_BG, borderRadius: 10, border: `1px solid ${COLOR_BORDER}` }}>
                 <div style={{ fontSize: 11, color: COLOR_TEXT_SUB, lineHeight: 1.6 }}>
