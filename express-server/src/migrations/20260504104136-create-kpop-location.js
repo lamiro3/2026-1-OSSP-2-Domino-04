@@ -29,13 +29,22 @@ module.exports = {
       },
       place_id: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
-          model: 'Places', // 참조할 테이블
+          model: 'Places',
           key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE' // 원본 장소가 삭제되면 연결 데이터도 삭제
+        onDelete: 'SET NULL'
+      },
+      media_title: {
+        type: Sequelize.STRING(255),
+        allowNull: true
+      },
+      source_type: {
+        type: Sequelize.ENUM('CSV', 'USER', 'ADMIN'),
+        allowNull: false,
+        defaultValue: 'CSV'
       },
       created_at: {
         allowNull: false,
