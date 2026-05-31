@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # --- 공통 및 보안 ---
 .env
 .env.*
@@ -11,3 +12,28 @@ firebase-adminsdk.json
 # --- Mac/Windows 시스템 파일 ---
 .DS_Store
 Thumbs.db
+=======
+# --- 공통 및 보안 ---
+.env
+.env.*
+mysql_data/
+firebase-adminsdk.json
+
+*.json
+!package.json
+!package-lock.json
+!**/config.json
+
+# --- Mac/Windows 시스템 파일 ---
+.DS_Store
+Thumbs.db
+# express-server.gitignore
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnp.*
+# fastapi-server.gitignore
+venv/
+__pycach
+>>>>>>> cc7618cee76bc2259ea2796180f1e1c55eae24f8

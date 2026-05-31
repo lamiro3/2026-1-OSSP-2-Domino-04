@@ -1,9 +1,10 @@
 # 2026-1-OSSP-2-Domino-04
 외국인들을 위한 관광지 및 명소 추천 서비스
 
-## Rule
-본 프로젝트는 Forking Workflow를 기반으로 운영됩니다. 모든 개발은 develop 브랜치를 중심으로 이루어지며, 파트별 검증 후 최종 배포 시에만 main을 사용합니다.
+## Part 소개
+Backend part용 branch입니다.
 
+<<<<<<<< HEAD:README.md
   - ### Commit 양식         
       | 유형    |  tagname |
       | ----- | -------- |
@@ -108,3 +109,8 @@
         - Reviewer의 경우 파트장 또는 팀장 포함시키기
         - Assignees의 경우 ISSUE 생성시와 동일
         - Development에서 앞서 만든 ISSUE 검색해서 해당 ISSUE와 연결
+========
+## Member
+- 정덕원
+- 차정민
+>>>>>>>> 5fc502e0202a62199ad196f5f161a9be31825e8f:BackEnd/README.md
