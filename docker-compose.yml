@@ -62,6 +62,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - FASTAPI_URL=http://fastapi-server:8000
+    command: sh -c "npx sequelize-cli db:migrate && node src/app.js"
     depends_on:
       db:
         condition: service_healthy

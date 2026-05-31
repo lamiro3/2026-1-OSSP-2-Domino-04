@@ -20,7 +20,7 @@ const REQUIRED_ENV_VARS = [
   'KAKAO_DIRECTIONS_URL',
   'TRIPADVISOR_API_KEY',
   'FASTAPI_URL',
-  'PUBLIC_DATA_API_KEY',
+  'SEOUL_API_KEY',
 ];
 
 const missingVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);

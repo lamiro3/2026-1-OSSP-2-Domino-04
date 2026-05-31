@@ -8,6 +8,7 @@ lifespan에서 scheduler 시작 + event_detector 콜백 등록.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 import logging
 
 from fastapi import FastAPI, Depends
@@ -16,6 +17,7 @@ from sqlalchemy import text
 
 from app.routers import disaster, route, population, cache
 from app.services.scheduler import scheduler
+from app.services.event_detector import DisasterMessage
 from app.database import get_db
 
 logging.basicConfig(level=logging.DEBUG)
@@ -25,20 +27,29 @@ logging.basicConfig(level=logging.DEBUG)
 async def _on_new_disaster_events(events) -> None:
     """
     event_detector가 새 재난/사고를 감지했을 때 호출되는 콜백.
-    DB 세션을 열고 process_and_save() 호출.
+    DB 세션을 열고 process_and_save() 호출 후 TTL 추적 등록.
     """
     from app.routers.disaster import process_and_save
 
     db = next(get_db())
     try:
         for event in events:
-            await process_and_save(
+            if not isinstance(event, DisasterMessage):
+                continue
+            db_id = await process_and_save(
                 event_id=event.event_id,
                 dst_se_nm=event.dst_se_nm,
                 dst_msg=event.dst_msg,
                 danger_level=event.danger_level.value,
                 db=db,
             )
+            if db_id:
+                scheduler.register_disaster_ttl(
+                    db_id=db_id,
+                    dst_msg=event.dst_msg,
+                    area_nm=event.area_nm,
+                    received_at=datetime.now(),
+                )
     finally:
         db.close()
 
@@ -76,6 +87,7 @@ async def health():
         "status": "ok",
         "api_calls": scheduler.api_call_count,
         "seen_events": scheduler.detector.seen_count,
+        "ttl_active": scheduler.ttl_active_count,
     }
 
 

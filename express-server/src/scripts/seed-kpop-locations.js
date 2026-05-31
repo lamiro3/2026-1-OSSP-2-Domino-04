@@ -54,7 +54,7 @@ async function seed() {
     const [placeResult] = await db.execute(
       `INSERT INTO Places (category, place_id, coordinates, source, createdAt, updatedAt)
        VALUES (?, NULL, ST_GeomFromText(?, 4326), 'CSV', NOW(), NOW())`,
-      [category, `POINT(${lng} ${lat})`]
+      [category, `POINT(${lat} ${lng})`]
     );
     const placeId = placeResult.insertId;
 
