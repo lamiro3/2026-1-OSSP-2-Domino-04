@@ -2,9 +2,9 @@
 외국인들을 위한 관광지 및 명소 추천 서비스
 
 ## Part 소개
-Backend part용 branch입니다.
+Frontend: 고태현, 장효준
+Backend: 정덕원, 차정민
 
-<<<<<<<< HEAD:README.md
   - ### Commit 양식         
       | 유형    |  tagname |
       | ----- | -------- |
@@ -109,8 +109,3 @@ Backend part용 branch입니다.
         - Reviewer의 경우 파트장 또는 팀장 포함시키기
         - Assignees의 경우 ISSUE 생성시와 동일
         - Development에서 앞서 만든 ISSUE 검색해서 해당 ISSUE와 연결
-========
-## Member
-- 정덕원
-- 차정민
->>>>>>>> 5fc502e0202a62199ad196f5f161a9be31825e8f:BackEnd/README.md
