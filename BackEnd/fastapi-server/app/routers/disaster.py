@@ -104,8 +104,9 @@ async def analyze_disaster(request: AlertRequest):
 
 class SimulateRequest(BaseModel):
     alert_text: str
-    dst_se_nm: str = "기타"    # 재난 유형명 (화재·홍수·가스누출 등)
-    expires_hours: int = 2     # 몇 시간 뒤 만료할지
+    dst_se_nm: str = "기타"
+    expires_hours: int = 72
+    area_nm: str = "명동 관광특구"  # TTL 체크 시 사용할 핫스팟명
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +204,7 @@ async def process_and_save(
     dst_msg: str,
     danger_level: str,
     db: Session,
-) -> bool:
+) -> int | None:
     """
     EventDetector가 감지한 신규 재난을 Gemini로 분석해 DB에 저장.
 
@@ -212,8 +213,8 @@ async def process_and_save(
     (event_id·dst_se_nm·danger_level 컬럼은 마이그레이션에 없으므로 제외)
 
     Returns:
-        True  — 저장 성공
-        False — 분석 실패 또는 중복 (skip)
+        int  — 저장 성공 시 삽입된 row id
+        None — 분석 실패 또는 중복 (skip)
     """
     # 중복 체크 — message 기준 (event_id 컬럼 없음)
     existing = db.execute(
@@ -221,33 +222,34 @@ async def process_and_save(
         {"msg": dst_msg},
     ).fetchone()
     if existing:
-        return False
+        return None
 
     # Gemini 분석
     try:
         parsed = disaster_service.analyze_alert(dst_msg)
     except Exception as exc:
         logger.warning("[process_and_save] Gemini 분석 실패: %s", exc)
-        return False
+        return None
 
     lat        = float(parsed["lat"])
     lng        = float(parsed["lng"])
     radius_m   = int(parsed["radius"])
     penalty    = disaster_service.calculate_weight_penalty(radius_m)
     received_at = datetime.now()
-    expires_at  = received_at + timedelta(hours=2)
+    expires_at  = received_at + timedelta(hours=72)  # TTL 추적기가 조기 만료 처리
 
     try:
-        db.execute(
+        result = db.execute(
             text("""
                 INSERT INTO DisasterAlerts
-                    (message, coordinates, radius_m, weight_penalty,
+                    (event_id, message, coordinates, radius_m, weight_penalty,
                      received_at, expires_at, created_at, updated_at)
                 VALUES
-                    (:message, ST_GeomFromText(:point, 4326), :radius_m, :penalty,
+                    (:event_id, :message, ST_GeomFromText(:point, 4326), :radius_m, :penalty,
                      :received_at, :expires_at, NOW(), NOW())
             """),
             {
+                "event_id":    event_id,
                 "message":     dst_msg,
                 "point":       f"POINT({lat} {lng})",
                 "radius_m":    radius_m,
@@ -257,12 +259,13 @@ async def process_and_save(
             },
         )
         db.commit()
-        logger.info("[process_and_save] 저장 완료 — lat=%s, lng=%s, radius=%sm", lat, lng, radius_m)
-        return True
+        db_id = result.lastrowid
+        logger.info("[process_and_save] 저장 완료 — id=%d lat=%s lng=%s radius=%sm", db_id, lat, lng, radius_m)
+        return db_id
     except Exception as exc:
         db.rollback()
         logger.error("[process_and_save] DB 저장 실패: %s", exc)
-        return False
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +313,7 @@ async def simulate_disaster(request: SimulateRequest, db: Session = Depends(get_
 
     # DB 저장 — 실제 컬럼만 사용
     try:
-        db.execute(
+        result = db.execute(
             text("""
                 INSERT INTO DisasterAlerts
                     (message, coordinates, radius_m, weight_penalty,
@@ -329,12 +332,23 @@ async def simulate_disaster(request: SimulateRequest, db: Session = Depends(get_
             },
         )
         db.commit()
+        db_id = result.lastrowid
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"DB 저장 실패: {exc}")
 
+    # TTL 추적 등록
+    from app.services.scheduler import scheduler
+    scheduler.register_disaster_ttl(
+        db_id=db_id,
+        dst_msg=request.alert_text,
+        area_nm=request.area_nm,
+        received_at=received_at,
+    )
+
     return {
         "status":     "saved",
+        "db_id":      db_id,
         "alert_text": request.alert_text,
         "analysis": {
             "lat":      lat,
@@ -343,5 +357,6 @@ async def simulate_disaster(request: SimulateRequest, db: Session = Depends(get_
             "penalty":  penalty,
         },
         "expires_at": str(expires_at),
+        "ttl_area":   request.area_nm,
     }
 >>>>>>> cc7618cee76bc2259ea2796180f1e1c55eae24f8

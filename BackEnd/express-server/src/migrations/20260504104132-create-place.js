@@ -25,13 +25,18 @@ module.exports = {
         allowNull: true
       },
       category: {
-        type: Sequelize.ENUM('ACCOMMODATION', 'RESTAURANT', 'CAFE', 'ATTRACTION'),
+        type: Sequelize.ENUM('ACCOMMODATION', 'RESTAURANT', 'CAFE', 'ATTRACTION', 'PLAYGROUND', 'STORE', 'SHOP'),
         allowNull: false
       },
       place_id: {
         type: Sequelize.STRING(100),
+        allowNull: true,
+        unique: true
+      },
+      source: {
+        type: Sequelize.ENUM('TRIPADVISOR', 'CSV'),
         allowNull: false,
-        unique: true 
+        defaultValue: 'TRIPADVISOR'
       },
       coordinates: {
         type: Sequelize.GEOMETRY('POINT', 4326),
