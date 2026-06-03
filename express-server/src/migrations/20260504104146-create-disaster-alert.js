@@ -9,6 +9,11 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
+      event_id: {
+        type: Sequelize.STRING(16),
+        allowNull: true,
+        unique: true
+      },
       message: {
         type: Sequelize.TEXT,
         allowNull: false

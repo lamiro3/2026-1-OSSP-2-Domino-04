@@ -23,10 +23,12 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
+from datetime import datetime
 
 from app.services.cache import CacheStrategy, cache as default_cache
 from app.services.event_detector import EventDetector
 from app.services.seoul_api import SeoulApiClient, CityData
+from app.services.ttl_tracker import TtlTracker
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +80,8 @@ class Scheduler:
     ) -> None:
         self._cache      = cache or default_cache
         self._detector   = detector or EventDetector()
-        self._api        = api_client or SeoulApiClient()   # ← 추가
+        self._api        = api_client or SeoulApiClient()
+        self._ttl_tracker = TtlTracker(api_client=self._api)
         self._tasks: list[asyncio.Task] = []
         self._sem        = asyncio.Semaphore(_CONCURRENCY)
         self._count_lock = asyncio.Lock()
@@ -100,9 +103,13 @@ class Scheduler:
                 self._loop(self._poll_all_areas, _INTERVAL_CITYDATA),
                 name="scheduler-citydata",
             ),
+            asyncio.create_task(
+                self._ttl_tracker.run(),
+                name="scheduler-ttl",
+            ),
         ]
         logger.info(
-            "[Scheduler] 시작 — 재난·인구·교통 5분, 날씨 1시간, 행사 24시간 주기"
+            "[Scheduler] 시작 — 재난·인구·교통 5분, 날씨 1시간, 행사 24시간 주기 | TTL 추적 활성화"
         )
 
     async def stop(self) -> None:
@@ -233,6 +240,16 @@ class Scheduler:
 
     # ── 공개 속성 ─────────────────────────────────
 
+    def register_disaster_ttl(
+        self,
+        db_id: int,
+        dst_msg: str,
+        area_nm: str,
+        received_at: datetime,
+    ) -> None:
+        """신규 재난을 TTL 추적기에 등록."""
+        self._ttl_tracker.register(db_id, dst_msg, area_nm, received_at)
+
     @property
     def detector(self) -> EventDetector:
         return self._detector
@@ -240,6 +257,10 @@ class Scheduler:
     @property
     def api_call_count(self) -> int:
         return self._api_call_count
+
+    @property
+    def ttl_active_count(self) -> int:
+        return self._ttl_tracker.active_count
 
     @property
     def weather_set_count(self) -> int:
