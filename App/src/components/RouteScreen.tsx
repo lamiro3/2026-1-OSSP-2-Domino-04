@@ -68,7 +68,7 @@ const RADIUS_OPTION_LIST = [
 ] as const;
 
 const CATEGORY_ICON: Record<Category, string> = {
-  카페: "☕", 갤러리: "🖼", 공원: "🌿", 명소: "📸", 문화: "🎨", 거리: "🛍",
+  카페: "☕", 갤러리: "🖼", 공원: "🌿", 명소: "📸", 문화: "🎨", 거리: "🛍", 식당: "🍽️"
 };
 
 const IconNearby: FC = () => (
@@ -331,17 +331,62 @@ const RouteScreen: FC = () => {
   } = usePlaceSearch({ isServicesReady, onConfirm: onSearchConfirm, onFocusResult: onSearchFocus });
 
   // 검색 결과가 바뀔 때마다 각 장소의 평점을 비동기로 fetch
+  // - localStorage("ta_${id}") 캐시 공유 (추천 경로·직접 입력과 동일 키)
+  // - 5개씩 순차 처리 → TripAdvisor rate limit(5 req/s) 방지
   useEffect(() => {
     if (searchResults.length === 0) { setSearchRatings({}); return; }
+
+    const TA_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+    const readCache = (id: string): number | undefined => {
+      try {
+        const raw = localStorage.getItem(`ta_${id}`);
+        if (!raw) return undefined;
+        const { data, ts } = JSON.parse(raw) as { data: { rating: number } | null; ts: number };
+        if (!data || Date.now() - ts > TA_CACHE_TTL) { localStorage.removeItem(`ta_${id}`); return undefined; }
+        return data.rating > 0 ? data.rating : undefined;
+      } catch { return undefined; }
+    };
+    const writeCache = (id: string, rating: number) => {
+      try {
+        const raw = localStorage.getItem(`ta_${id}`);
+        const prev = raw ? JSON.parse(raw) : null;
+        // 기존 캐시에 rating만 갱신하고 나머지 필드(reviews, webUrl 등) 유지
+        const data = { ...(prev?.data ?? {}), rating };
+        localStorage.setItem(`ta_${id}`, JSON.stringify({ data, ts: Date.now() }));
+      } catch { }
+    };
+
     let cancelled = false;
-    setSearchRatings({});
-    searchResults.slice(0, 10).forEach(async result => {
-      const locationId = await fetchTaLocationId(result.place_name, parseFloat(result.y), parseFloat(result.x));
-      if (cancelled || !locationId) return;
-      const detail = await fetchTaDetail(locationId);
-      if (cancelled || !detail || detail.rating <= 0) return;
-      setSearchRatings(prev => ({ ...prev, [result.id]: detail.rating }));
+    const targets = searchResults.slice(0, 10);
+
+    // 먼저 캐시에서 읽어 즉시 반영
+    const fromCache: Record<string, number> = {};
+    targets.forEach(r => {
+      const cached = readCache(r.id);
+      if (cached !== undefined) fromCache[r.id] = cached;
     });
+    if (Object.keys(fromCache).length > 0) setSearchRatings(fromCache);
+
+    // 캐시 미스 항목만 5개씩 순차 API 호출
+    const needFetch = targets.filter(r => readCache(r.id) === undefined);
+    if (needFetch.length === 0) return () => { cancelled = true; };
+
+    (async () => {
+      for (let i = 0; i < needFetch.length; i += 5) {
+        if (cancelled) return;
+        const batch = needFetch.slice(i, i + 5);
+        await Promise.all(batch.map(async result => {
+          const locationId = await fetchTaLocationId(result.place_name, parseFloat(result.y), parseFloat(result.x));
+          if (cancelled || !locationId) return;
+          const detail = await fetchTaDetail(locationId);
+          if (cancelled || !detail || detail.rating <= 0) return;
+          writeCache(result.id, detail.rating);
+          setSearchRatings(prev => ({ ...prev, [result.id]: detail.rating }));
+        }));
+        if (i + 5 < needFetch.length) await new Promise(res => setTimeout(res, 300));
+      }
+    })();
+
     return () => { cancelled = true; };
   }, [searchResults]);
 
