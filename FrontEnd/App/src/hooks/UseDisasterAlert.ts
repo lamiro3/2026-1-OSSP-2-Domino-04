@@ -135,8 +135,9 @@ export const useDisasterAlert = (useMock = true): UseDisasterAlertReturn => {
 
     const fetchActive = async () => {
       try {
-        // [API] Express 프록시 통해서 FastAPI /disaster/active 호출
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/disaster/active`);
+        // [API] FastAPI /disaster/active 직접 호출 (PROD: VITE_BACKEND_URL, DEV: Vite /api 프록시)
+        const _BASE = import.meta.env.VITE_BACKEND_URL ?? "";
+        const res = await fetch(`${_BASE}/api/disaster/active`);
         if (!res.ok) return;
         const json = await res.json();
 
