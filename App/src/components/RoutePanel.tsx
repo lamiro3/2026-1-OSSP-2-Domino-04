@@ -1050,7 +1050,10 @@ const RoutePanel: FC<RoutePanelProps> = ({
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleRequestNavigation(route, { type: 'recommend' })}
+                              onClick={() => {
+                                sendRouteFeedback(route, recRoutes.filter(r => r.label !== route.label));
+                                handleRequestNavigation(route, { type: 'recommend' });
+                              }}
                               style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: COLOR_PRIMARY, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans KR', sans-serif" }}
                             >
                               🗺 안내 시작

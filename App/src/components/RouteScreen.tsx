@@ -727,7 +727,8 @@ const RouteScreen: FC = () => {
     setIsNavigating(true);
     setNavIsRecommend(pendingNavCtx?.type === 'recommend');
     setNavCtx(pendingNavCtx);
-    handledNavAlertIdsRef.current = new Set();
+    // 사용자가 재난을 인지하고 기존 경로를 선택했으므로 현재 활성 알림 전부를 처리된 것으로 표시
+    handledNavAlertIdsRef.current = new Set(activeAlerts.map(a => a.id));
     setShowDisasterModal(false);
     setPendingNavRoute(null);
     setPendingNavAlerts([]);
@@ -736,7 +737,7 @@ const RouteScreen: FC = () => {
     setDetourManualRoutes([]);
     setDetourDestInZone(false);
     setDetourCategoryBias(undefined);
-  }, [pendingNavRoute, pendingNavCtx]);
+  }, [pendingNavRoute, pendingNavCtx, activeAlerts]);
 
   const handleConfirmDestWarning = useCallback(() => {
     if (!pendingNavRoute) return;
@@ -801,7 +802,8 @@ const RouteScreen: FC = () => {
     setIsNavigating(true);
     setNavIsRecommend(!isManual);
     setNavCtx(pendingNavCtx);
-    handledNavAlertIdsRef.current = new Set();
+    // 사용자가 우회 경로를 의식적으로 선택했으므로 현재 활성 알림 전부를 처리된 것으로 표시
+    handledNavAlertIdsRef.current = new Set(activeAlerts.map(a => a.id));
     setShowDisasterModal(false);
     setPendingNavRoute(null);
     setPendingNavAlerts([]);
@@ -810,7 +812,7 @@ const RouteScreen: FC = () => {
     setDetourManualRoutes([]);
     setDetourDestInZone(false);
     setDetourCategoryBias(undefined);
-  }, [clearMapLayers, kakaoMapRef, isMapReady, pendingNavCtx, polylineListRef, overlayListRef]);
+  }, [clearMapLayers, kakaoMapRef, isMapReady, pendingNavCtx, polylineListRef, overlayListRef, activeAlerts]);
 
   const handleCancelNavigation = useCallback(() => {
     setIsNavigating(false);
@@ -858,9 +860,8 @@ const RouteScreen: FC = () => {
     setDetourDisasterZones(zones);
 
     if (!navIsRecommend && navCtx?.type === 'manual') {
-      // 직접 입력: 현재 위치 → 원래 목적지로 우회 경로 즉시 계산
-      const currentOrigin = { lat: userLat, lng: userLng, name: '현재 위치' };
-      buildManualRoutes(currentOrigin, navCtx.dest, zones, dominantCat)
+      // 직접 입력: 원래 출발지 → 원래 목적지로 우회 경로 즉시 계산
+      buildManualRoutes(navCtx.origin, navCtx.dest, zones, dominantCat)
         .then(routes => {
           if (routes.length === 0) return;
           clearMapLayers();
@@ -869,7 +870,6 @@ const RouteScreen: FC = () => {
             drawOnMap(r.roads, r.places.map(p => ({ lat: p.lat, lng: p.lng, name: p.name })), kakaoMapRef, polylineListRef, overlayListRef);
           }
           setNavRoute(r);
-          setNavCtx(prev => prev ? { ...prev, origin: currentOrigin } : prev);
         })
         .catch(e => console.error("[AutoDetour] 직접 입력 우회 실패:", e))
         .finally(() => { isAutoReroutingRef.current = false; setIsAutoRerouting(false); });
