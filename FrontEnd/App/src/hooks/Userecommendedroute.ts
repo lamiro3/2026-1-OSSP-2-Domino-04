@@ -165,12 +165,12 @@ export const sendRouteFeedback = (
   }
 
   Promise.allSettled([
-    fetch(backendUrl("/route/recommend/feedback"), {
+    fetch("/api/route/recommend/feedback", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ selected_places: selectedInputs, rejected_places: rejectedInputs }),
     }),
-    fetch(backendUrl("/route/feedback"), {
+    fetch("/api/route/feedback", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ selected_categories: selectedRoute.places.map(p => p.category) }),
@@ -426,7 +426,7 @@ export const useRecommendedRoute = ({
       // ── 백엔드 ML 모델 추천 호출 (MLP 채점 + Held-Karp+2-opt 순서 최적화)
       let backendRoutes: BackendRouteCandidate[] = [];
       try {
-        const res = await fetch(backendUrl("/route/recommend"), {
+        const res = await fetch("/api/route/recommend", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({
