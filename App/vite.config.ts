@@ -5,18 +5,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/vite-proxy/tripadvisor": {
-        target: "https://api.content.tripadvisor.com",
+      // TripAdvisor · Directions · 경로추천: idfriend.kr (VITE_BACKEND_URL) 직접 호출
+      // 도보 경로(tmap) · 직접입력 ML 호출: 아래 프록시를 통해 로컬 FastAPI로 전달
+      "/api": {
+        target: "http://localhost:8000",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/vite-proxy\/tripadvisor/, ""),
-        configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
-            proxyReq.removeHeader("origin");
-            proxyReq.removeHeader("referer");
-            proxyReq.setHeader("Referer", "http://localhost.localdomain");
-            proxyReq.setHeader("Origin", "http://localhost.localdomain");
-          });
-        },
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },
