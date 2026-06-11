@@ -14,7 +14,7 @@
 //     - 선택된 경로 상세 결과 카드
 // ═══════════════════════════════════════════════════════════
 
-import { type FC, useState, useCallback, useEffect } from "react";
+import { type FC, useState, useCallback, useEffect, useMemo } from "react";
 import type { RouteState, RoutePoint, RouteResult, Category, Place } from "../types/type";
 import PlaceSearchInput from "./PlaceSearchInput";
 import PlaceMarker from "./PlaceMarker";
@@ -277,6 +277,7 @@ interface RoutePanelProps {
   navRoute?: RecommendedRoute | null;
   // 추천 탭에서 시작한 안내인지 여부 — 마커 갱신 범위 제한
   navIsRecommend?: boolean;
+  isEn?: boolean;
 }
 
 // ── [직접 입력용 경로 후보 3개 생성] ─────────────────────
@@ -1177,7 +1178,10 @@ const RoutePanel: FC<RoutePanelProps> = ({
           {manualLoading && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "20px 0", color: COLOR_TEXT_SUB }}>
               <div style={{ width: 28, height: 28, border: `3px solid ${COLOR_PRIMARY}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-              <span style={{ fontSize: 13 }}>{isEn ? "Generating route suggestions..." : "경로 추천 모델로후보 생성 중..."}</span>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLOR_TEXT_MAIN, marginBottom: 4 }}>{isEn ? "AI is generating the optimal route" : "AI가 최적 경로를 생성하고 있어요"}</div>
+                <div style={{ fontSize: 12, color: COLOR_TEXT_SUB }}>{isEn ? "Route recommendation model is analyzing..." : "맞춤 코스 추천 모델이 분석 중입니다..."}</div>
+              </div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
