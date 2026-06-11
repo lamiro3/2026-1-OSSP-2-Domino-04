@@ -12,7 +12,7 @@ const FASTAPI_URL = process.env.FASTAPI_URL || 'http://fastapi:8000';
 
 router.get('/tripadvisor/search', async (req, res) => {
     try {
-        const { searchQuery, latLong } = req.query;
+        const { searchQuery, latLong, language } = req.query;
 
         if (!searchQuery || !latLong) {
             return res.status(400).json({ error: 'searchQuery와 latLong 파라미터는 필수입니다.' });
@@ -22,7 +22,7 @@ router.get('/tripadvisor/search', async (req, res) => {
             params: {
                 searchQuery,
                 latLong,
-                language: 'ko',
+                language: language || 'ko',
                 key: process.env.TRIPADVISOR_API_KEY
             },
             headers: {
@@ -48,6 +48,7 @@ router.get('/tripadvisor/search', async (req, res) => {
 router.get('/tripadvisor/details/:locationId', async (req, res) => {
     try {
         const { locationId } = req.params;
+        const { language } = req.query;
 
         if (!locationId || locationId === 'undefined' || locationId === 'null') {
             return res.status(400).json({ error: '유효하지 않은 locationId 입니다.' });
@@ -55,7 +56,7 @@ router.get('/tripadvisor/details/:locationId', async (req, res) => {
 
         const response = await axios.get(`https://api.content.tripadvisor.com/api/v1/location/${locationId}/details`, {
             params: {
-                language: 'ko',
+                language: language || 'ko',
                 key: process.env.TRIPADVISOR_API_KEY
             },
             headers: {
