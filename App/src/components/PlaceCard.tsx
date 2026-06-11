@@ -37,7 +37,7 @@ interface PlaceCardProps {
   isEn?:      boolean;
 }
 
-const PlaceCard: FC<PlaceCardProps> = ({ place, isSelected, onSelect, onDetail, isEn = false }) => {
+const PlaceCard: FC<PlaceCardProps> = ({ place, isSelected, onSelect }) => {
   const catColor = CATEGORY_COLOR[place.category] ?? { main: COLOR_PRIMARY, light: COLOR_PRIMARY_LIGHT, iconBg: `${COLOR_PRIMARY}18` };
   return (
   <div onClick={() => onSelect(place)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 14, background: catColor.light, border: `1.5px solid ${isSelected ? catColor.main : COLOR_BORDER}`, boxShadow: isSelected ? `0 2px 12px ${catColor.main}22` : "0 1px 4px rgba(0,0,0,0.05)", cursor: "pointer", transition: "all 0.2s" }}>
@@ -48,7 +48,7 @@ const PlaceCard: FC<PlaceCardProps> = ({ place, isSelected, onSelect, onDetail, 
       <div style={{ fontSize: 13, fontWeight: 700, color: COLOR_TEXT_MAIN, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{place.name}</div>
       <div style={{ display: "flex", gap: 8, fontSize: 11, color: COLOR_TEXT_SUB }}>
         {place.rating > 0 && <><span>⭐ {place.rating.toFixed(1)}</span><span>·</span></>}
-        {place.reviews > 0 && <><span>{isEn ? "reviews" : "리뷰"} {place.reviews.toLocaleString()}</span><span>·</span></>}
+        {place.reviews > 0 && <><span>리뷰 {place.reviews.toLocaleString()}</span><span>·</span></>}
         <span style={{ color: COLOR_PRIMARY, fontWeight: 600 }}>{place.distance}m</span>
       </div>
     </div>

@@ -14,7 +14,7 @@
 //     - 선택된 경로 상세 결과 카드
 // ═══════════════════════════════════════════════════════════
 
-import { type FC, useState, useCallback, useEffect, useMemo } from "react";
+import { type FC, useState, useCallback, useEffect } from "react";
 import type { RouteState, RoutePoint, RouteResult, Category, Place } from "../types/type";
 import PlaceSearchInput from "./PlaceSearchInput";
 import PlaceMarker from "./PlaceMarker";
@@ -277,7 +277,6 @@ interface RoutePanelProps {
   navRoute?: RecommendedRoute | null;
   // 추천 탭에서 시작한 안내인지 여부 — 마커 갱신 범위 제한
   navIsRecommend?: boolean;
-  isEn?: boolean;
 }
 
 // ── [직접 입력용 경로 후보 3개 생성] ─────────────────────
