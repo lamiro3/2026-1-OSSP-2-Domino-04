@@ -1,0 +1,316 @@
+// ═══════════════════════════════════════════════════════════
+// useDisasterAlert — 재난 알림 큐 + 타임아웃 관리 훅
+//
+// [구조]
+//   - useMock=true:  Mock 데이터로 테스트
+//   - useMock=false: GET /disaster/active 30초 폴링
+//   - alertQueue: 수신된 알림 목록 (최대 MAX_QUEUE_SIZE개)
+//   - currentAlert: 현재 배너에 표시 중인 알림
+//   - 알림 유형별 타임아웃 자동 해제
+//
+// [API 응답 -> DisasterAlert 매핑]
+//   id            <- String(row.id)
+//   dstSeNm       <- weight_penalty 기준 유형 판단
+//   msgCn         <- row.message
+//   summary       <- row.message 앞 30자 (LLM 연동 전 임시)
+//   rcptnRgnNm    <- "서울시 실시간 데이터"
+//   lat/lng       <- row.lat / row.lng (ST_X/ST_Y 결과)
+//   radiusM       <- row.radius_m
+// ═══════════════════════════════════════════════════════════
+
+import { useState, useEffect, useCallback, useRef } from "react";
+
+// ── [TYPE] ────────────────────────────────────────────────
+
+export type DisasterType = "호우" | "교통통제" | "긴급재난";
+
+export interface DisasterAlert {
+  id:          string;
+  dstSeNm:     DisasterType;
+  msgCn:       string;
+  summary:     string;
+  rcptnRgnNm:  string;
+  crtDt:       string;
+  receivedAt:  number;
+  lat?:        number;
+  lng?:        number;
+  radiusM?:    number;
+}
+
+// ── [CONFIG] ──────────────────────────────────────────────
+
+const TIMEOUT_MS: Record<DisasterType, number> = {
+  긴급재난: 30 * 60 * 1000,
+  교통통제:  2 * 60 * 60 * 1000,
+  호우:      6 * 60 * 60 * 1000,
+};
+
+const MAX_QUEUE_SIZE = 10;
+
+// [API] 폴링 간격 30초
+const POLL_INTERVAL_MS = 30 * 1000;
+
+// [CONFIG] weight_penalty -> DisasterType 매핑
+const penaltyToType = (penalty: number): DisasterType => {
+  if (penalty >= 100) return "긴급재난";
+  if (penalty >= 60)  return "교통통제";
+  return "호우";
+};
+
+// [CONFIG] Mock 알림 데이터 — useMock=true 시에만 사용
+const MOCK_ALERTS_KO: Omit<DisasterAlert, "receivedAt">[] = [
+  {
+    id:         "mock-1",
+    dstSeNm:    "교통통제",
+    msgCn:      "[용산구] 이촌역 1번출구 앞 도로 공사로 인해 이촌역에서 용산역 방향 도로 통제 중이니 우회하여 주시기 바랍니다.",
+    summary:    "이촌역 앞 도로 공사 — 용산역 방향 통제",
+    lat:        37.5176,
+    lng:        126.9688,
+    radiusM:    400,
+    rcptnRgnNm: "서울특별시 용산구 이촌동",
+    crtDt:      "2025-05-18 14:26",
+  },
+  {
+    id:         "mock-2",
+    dstSeNm:    "호우",
+    msgCn:      "[행정안전부] 용산구 일대 호우경보. 한강 수위 상승으로 한강변 산책로 통제, 외출자제 등 안전에 주의바랍니다.",
+    summary:    "용산구 호우경보 — 한강변 통제",
+    lat:        37.5219,
+    lng:        126.9647,
+    radiusM:    800,
+    rcptnRgnNm: "서울특별시 용산구 전체",
+    crtDt:      "2025-05-18 20:30",
+  },
+  {
+    id:         "mock-3",
+    dstSeNm:    "긴급재난",
+    msgCn:      "[기상청] 용산철도고등학교 인근 시간당 70mm 이상 강한 비로 침수 즉시 대피 요망. 지하차도 접근 금지.",
+    summary:    "용산 철도고 인근 침수 — 즉시 대피",
+    lat:        37.5243,
+    lng:        126.9615,
+    radiusM:    350,
+    rcptnRgnNm: "서울특별시 용산구 한강로동",
+    crtDt:      "2025-05-18 20:33",
+  },
+  {
+    id:         "mock-4",
+    dstSeNm:    "긴급재난",
+    msgCn:      "[기상청] 오늘 16시 30분 성북구 보문동 일대 시간당 75mm 이상 강한 비로 성북천 범람 위험. 성북천교 지하차도 진입을 금지하고 인근 주민들은 안전한 곳으로 대피 바랍니다.",
+    summary:    "성북구 보문동 성북천 범람 위험 — 지하차도 진입 금지 및 대피 요망",
+    lat:        37.5855,
+    lng:        127.0224,
+    radiusM:    400,
+    rcptnRgnNm: "서울특별시 성북구 보문동",
+    crtDt:      "2026-06-05 16:32",
+  },
+  {
+    id:         "mock-5",
+    dstSeNm:    "교통통제",
+    msgCn:      "[중구청] 동국대학교 정문 앞 퇴계로 3가 교차로 지하 공사 확대로 인해 동국대입구 방향 전 차선 통제 중입니다. 장충단로 또는 남산순환로로 우회하시기 바랍니다.",
+    summary:    "퇴계로 3가 교차로 전 차선 통제 — 장충단로 우회 요망",
+    lat:        37.5572,
+    lng:        127.0058,
+    radiusM:    450,
+    rcptnRgnNm: "서울특별시 중구 장충동1가",
+    crtDt:      "2026-06-11 10:15",
+  },
+  {
+    id:         "mock-6",
+    dstSeNm:    "긴급재난",
+    msgCn:      "[기상청] 오늘 09시 40분 중구 필동 일대 시간당 80mm 이상 강한 비로 필동천 역류 및 동국대학교 후문 진입로 침수 발생. 해당 구간 접근 금지 및 인근 주민·학생은 즉시 안전한 곳으로 대피 바랍니다.",
+    summary:    "필동 필동천 역류 — 동국대 후문 침수, 즉시 대피",
+    lat:        37.5601,
+    lng:        126.9988,
+    radiusM:    380,
+    rcptnRgnNm: "서울특별시 중구 필동2가",
+    crtDt:      "2026-06-11 09:42",
+  },
+];
+
+// [CONFIG] Mock 알림 데이터 (English) — useMock=true + isEn=true 시에만 사용
+const MOCK_ALERTS_EN: Omit<DisasterAlert, "receivedAt">[] = [
+  {
+    id:         "mock-1",
+    dstSeNm:    "교통통제",
+    msgCn:      "[Yongsan-gu] Road construction in front of Ichon Station Exit 1 — traffic control in effect toward Yongsan Station. Please use an alternate route.",
+    summary:    "Ichon Station road works — Yongsan direction blocked",
+    lat:        37.5176,
+    lng:        126.9688,
+    radiusM:    400,
+    rcptnRgnNm: "Ichon-dong, Yongsan-gu, Seoul",
+    crtDt:      "2025-05-18 14:26",
+  },
+  {
+    id:         "mock-2",
+    dstSeNm:    "호우",
+    msgCn:      "[MOIS] Heavy rain warning issued for Yongsan-gu. Han River water level rising — riverside walking paths closed. Please stay indoors and exercise caution.",
+    summary:    "Yongsan-gu heavy rain warning — riverside paths closed",
+    lat:        37.5219,
+    lng:        126.9647,
+    radiusM:    800,
+    rcptnRgnNm: "Yongsan-gu, Seoul (entire district)",
+    crtDt:      "2025-05-18 20:30",
+  },
+  {
+    id:         "mock-3",
+    dstSeNm:    "긴급재난",
+    msgCn:      "[KMA] Rainfall exceeding 70 mm/h near Yongsan Railway High School — immediate evacuation required. Do NOT enter underpasses or underground roads.",
+    summary:    "Yongsan Railway HS flooding — evacuate immediately",
+    lat:        37.5243,
+    lng:        126.9615,
+    radiusM:    350,
+    rcptnRgnNm: "Hangangno-dong, Yongsan-gu, Seoul",
+    crtDt:      "2025-05-18 20:33",
+  },
+  {
+    id:         "mock-4",
+    dstSeNm:    "긴급재난",
+    msgCn:      "[KMA] As of 16:30 today, rainfall exceeding 75 mm/h in Bomun-dong, Seongbuk-gu — Seongbuk Stream overflow risk. Entry to Seongbukcheon underpass is prohibited. Nearby residents please evacuate to a safe location immediately.",
+    summary:    "Bomun-dong flooding risk — underpass entry banned, evacuate now",
+    lat:        37.5855,
+    lng:        127.0224,
+    radiusM:    400,
+    rcptnRgnNm: "Bomun-dong, Seongbuk-gu, Seoul",
+    crtDt:      "2026-06-05 16:32",
+  },
+  {
+    id:         "mock-5",
+    dstSeNm:    "교통통제",
+    msgCn:      "[Jung-gu Office] Underground construction at Toegye-ro 3-ga intersection near Dongguk University main gate — all lanes closed toward Dongguk University entrance. Please use Jangchungdan-ro or Namsan Loop Road as alternate routes.",
+    summary:    "Toegye-ro 3-ga full road closure — divert via Jangchungdan-ro",
+    lat:        37.5572,
+    lng:        127.0058,
+    radiusM:    450,
+    rcptnRgnNm: "Jangchung-dong 1-ga, Jung-gu, Seoul",
+    crtDt:      "2026-06-11 10:15",
+  },
+  {
+    id:         "mock-6",
+    dstSeNm:    "긴급재난",
+    msgCn:      "[KMA] As of 09:40 today, rainfall exceeding 80 mm/h in Pil-dong, Jung-gu — Pildong Stream overflow and flooding at Dongguk University rear gate access road. Area is prohibited. Students and residents nearby please evacuate to safety immediately.",
+    summary:    "Pildong Stream overflow — DGU rear gate flooded, evacuate now",
+    lat:        37.5601,
+    lng:        126.9988,
+    radiusM:    380,
+    rcptnRgnNm: "Pil-dong 2-ga, Jung-gu, Seoul",
+    crtDt:      "2026-06-11 09:42",
+  },
+];
+
+// ── [HOOK] ────────────────────────────────────────────────
+
+interface UseDisasterAlertReturn {
+  currentAlert:   DisasterAlert | null;
+  alertQueue:     DisasterAlert[];
+  remainingSec:   number;
+  pushAlert:      (alert: Omit<DisasterAlert, "receivedAt">) => void;
+  dismissCurrent: () => void;
+  dismissAll:     () => void;
+}
+
+export const useDisasterAlert = (useMock = true, isEn = false): UseDisasterAlertReturn => {
+  const [alertQueue,   setAlertQueue]   = useState<DisasterAlert[]>([]);
+  const [remainingSec, setRemainingSec] = useState<number>(0);
+  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seenIdsRef  = useRef<Set<string>>(new Set());
+
+  // [ACTION] 외부에서 알림 추가
+  const pushAlert = useCallback((alert: Omit<DisasterAlert, "receivedAt">) => {
+    setAlertQueue(prev => {
+      if (prev.some(a => a.id === alert.id)) return prev;
+      const next = [...prev, { ...alert, receivedAt: Date.now() }];
+      return next.length > MAX_QUEUE_SIZE ? next.slice(-MAX_QUEUE_SIZE) : next;
+    });
+  }, []);
+
+  // [CONFIG] Mock 데이터 로드 (useMock=true)
+  useEffect(() => {
+    if (!useMock) return;
+    const alerts = isEn ? MOCK_ALERTS_EN : MOCK_ALERTS_KO;
+    const timers = alerts.map((alert, i) =>
+      setTimeout(() => pushAlert(alert), 15000 + i * 3000)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [useMock, isEn, pushAlert]);
+
+  // [API] 실제 폴링 (useMock=false)
+  useEffect(() => {
+    if (useMock) return;
+
+    const fetchActive = async () => {
+      try {
+        // [API] FastAPI /disaster/active 직접 호출 (PROD: VITE_BACKEND_URL, DEV: Vite /api 프록시)
+        const _BASE = import.meta.env.VITE_BACKEND_URL ?? "";
+        const res = await fetch(`${_BASE}/api/disaster/active`);
+        if (!res.ok) return;
+        const json = await res.json();
+
+        (json.data ?? []).forEach((row: {
+          id: number;
+          message: string;
+          lat: number;
+          lng: number;
+          radius_m: number;
+          weight_penalty: number;
+          received_at: string;
+          expires_at: string;
+        }) => {
+          const strId = String(row.id);
+          if (seenIdsRef.current.has(strId)) return;
+          seenIdsRef.current.add(strId);
+
+          pushAlert({
+            id:         strId,
+            dstSeNm:    penaltyToType(row.weight_penalty),
+            msgCn:      row.message,
+            summary:    row.message.slice(0, 30) + (row.message.length > 30 ? "..." : ""),
+            rcptnRgnNm: "서울시 실시간 데이터",
+            crtDt:      row.received_at?.slice(0, 16) ?? "",
+            lat: row.lng,   // API 응답의 lng가 실제 위도
+            lng: row.lat,   // API 응답의 lat이 실제 경도
+            radiusM:    row.radius_m,
+          });
+        });
+      } catch (e) {
+        console.warn("[useDisasterAlert] 폴링 실패:", e);
+      }
+    };
+
+    fetchActive();
+    const interval = setInterval(fetchActive, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [useMock, pushAlert]);
+
+  const currentAlert = alertQueue[0] ?? null;
+
+  // [LOGIC] 타임아웃 카운트다운
+  useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (!currentAlert) { setRemainingSec(0); return; }
+
+    const timeoutMs = TIMEOUT_MS[currentAlert.dstSeNm];
+    const calcRemaining = () => {
+      const elapsed = Date.now() - currentAlert.receivedAt;
+      return Math.max(0, Math.round((timeoutMs - elapsed) / 1000));
+    };
+
+    setRemainingSec(calcRemaining());
+    timerRef.current = setInterval(() => {
+      const rem = calcRemaining();
+      setRemainingSec(rem);
+      if (rem <= 0) setAlertQueue(prev => prev.slice(1));
+    }, 1000);
+
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [currentAlert?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dismissCurrent = useCallback(() => {
+    setAlertQueue(prev => prev.slice(1));
+  }, []);
+
+  const dismissAll = useCallback(() => {
+    setAlertQueue([]);
+  }, []);
+
+  return { currentAlert, alertQueue, remainingSec, pushAlert, dismissCurrent, dismissAll };
+};

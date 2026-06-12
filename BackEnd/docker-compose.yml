@@ -1,0 +1,106 @@
+services:
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    volumes:
+      - ./docker/mysql/healthcheck.sh:/healthcheck.sh:ro
+      - ./mysql_data:/var/lib/mysql
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "bash", "/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: [
+      "redis-server",
+      "--maxmemory", "256mb",
+      "--maxmemory-policy", "allkeys-lru",
+      "--save", ""
+    ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  express-server:
+    build:
+      context: ./express-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./express-server:/app
+      - /app/node_modules
+      - ./express-server/src/services/config/firebase-admin-key.json:/app/src/services/config/firebase-admin-key.json
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - MYSQL_HOST=db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FASTAPI_URL=http://fastapi-server:8000
+    command: sh -c "npx sequelize-cli db:migrate && node src/app.js"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  fastapi-server:
+    build:
+      context: .
+      dockerfile: docker/fast.api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi-server:/app
+    env_file:
+      - .env
+    environment:
+      - MYSQL_HOST=db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - EXPRESS_URL=http://express-server:3000
+      - TRIPADVISOR_API_KEY=${TRIPADVISOR_API_KEY}
+      - KAKAO_REST_API_KEY=${KAKAO_REST_API_KEY}
+      - KAKAO_DIRECTIONS_URL=${KAKAO_DIRECTIONS_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis_data:
