@@ -100,7 +100,7 @@
 
 위험이 생기면 스스로 피해가는 경로 → 경로에 실시간 안전 상태를 반영합니다.
 
-<img width="400" height="251" alt="KakaoTalk_20260612_080342358_01" src="https://github.com/user-attachments/assets/6936dc5c-9de1-4049-b125-b3d721dad8d5" />
+<img width="400" height="251" alt="KakaoTalk_20260612_080342358_01" src="https://github.com/user-attachments/assets/6936dc5c-9de1-4049-b125-b3d721dad8d5" /><img width="400" height="251" alt="화면 기록 2026-06-15 오후 12 25 20" src="https://github.com/user-attachments/assets/9d2d556a-263e-4db7-8634-819025c17493" />
 
 - 서울시 실시간 도시데이터 / 행정안전부 긴급재난문자 API **주기적 폴링** → 신규 재난 감지 (SHA-256 중복 제거)
 - **Gemini 2.5 Flash**로 재난문자 원문에서 위경도·위험 반경 추출 → 서울 범위 검증(실패 시 최대 3회 재시도) → DB 저장
