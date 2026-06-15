@@ -211,8 +211,8 @@ interface UseDisasterAlertReturn {
 export const useDisasterAlert = (useMock = true, isEn = false): UseDisasterAlertReturn => {
   const [alertQueue,   setAlertQueue]   = useState<DisasterAlert[]>([]);
   const [remainingSec, setRemainingSec] = useState<number>(0);
-  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const seenIdsRef  = useRef<Set<string>>(new Set());
+  const timerRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dismissedIdsRef = useRef<Set<string>>(new Set());
 
   // [ACTION] 외부에서 알림 추가
   const pushAlert = useCallback((alert: Omit<DisasterAlert, "receivedAt">) => {
@@ -256,8 +256,7 @@ export const useDisasterAlert = (useMock = true, isEn = false): UseDisasterAlert
           expires_at: string;
         }) => {
           const strId = String(row.id);
-          if (seenIdsRef.current.has(strId)) return;
-          seenIdsRef.current.add(strId);
+          if (dismissedIdsRef.current.has(strId)) return;
 
           pushAlert({
             id:         strId,
@@ -305,11 +304,17 @@ export const useDisasterAlert = (useMock = true, isEn = false): UseDisasterAlert
   }, [currentAlert?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dismissCurrent = useCallback(() => {
-    setAlertQueue(prev => prev.slice(1));
+    setAlertQueue(prev => {
+      if (prev[0]) dismissedIdsRef.current.add(prev[0].id);
+      return prev.slice(1);
+    });
   }, []);
 
   const dismissAll = useCallback(() => {
-    setAlertQueue([]);
+    setAlertQueue(prev => {
+      prev.forEach(a => dismissedIdsRef.current.add(a.id));
+      return [];
+    });
   }, []);
 
   return { currentAlert, alertQueue, remainingSec, pushAlert, dismissCurrent, dismissAll };
