@@ -10,7 +10,7 @@
   <a href="https://www.youtube.com/watch?v=gitc2EZzw1U"><b>🔗 시연영상 바로가기 (youtube)</b></a>
 </p>
 
-**팀명**: Domino-04  
+**팀명**: Domino-04 [동국대학교 공개SW프로젝트 (2026-1) · 02분반 4조]  
 **팀장**: 고태현  
 **팀원**: 장효준, 정덕원, 차정민
 
